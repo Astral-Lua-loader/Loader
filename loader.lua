@@ -1,17 +1,33 @@
 -- Astral loader: share this file once. Every run it pulls the latest Lua from
 -- github.com/Astral-Lua-loader/Lua (branch main) and runs entry.lua from it.
 
-local REPO = "https://raw.githubusercontent.com/Astral-Lua-loader/Lua/main/"
+local OWNER_REPO = "Astral-Lua-loader/Lua"
 
 local function log(text) print("[loader] " .. text) end
 
--- query string skips GitHub's ~5 min raw cache, so a push is live on the next run
-local stamp = tostring((pcall(os.time) and os.time()) or math.random(1, 1e9))
+-- a value that differs every load (Astral's `os` has no os.time; math.random unseeded repeats)
+local stamp
+do
+    local ok, t = pcall(globals.get_real_time)
+    local ok2, f = pcall(globals.get_frame_count)
+    stamp = tostring(ok and t or 0):gsub("%D", "") .. tostring(ok2 and f or 0) .. tostring(collectgarbage("count")):gsub("%D", "")
+end
+
+-- the newest commit's id: files fetched by commit are never a stale cached copy, and all come from one commit
+local ref = "main"
+do
+    local ok, r = pcall(http.get, "https://api.github.com/repos/" .. OWNER_REPO .. "/commits/main?t=" .. stamp,
+        {["Accept"] = "application/vnd.github.sha", ["User-Agent"] = "astral-lua-loader"})
+    local sha = ok and r and r.code == 200 and tostring(r.text):match("^%s*(%x+)%s*$")
+    if sha and #sha == 40 then ref = sha else log("couldn't read the latest commit, using main") end
+end
+local REPO = "https://raw.githubusercontent.com/" .. OWNER_REPO .. "/" .. ref .. "/"
 
 local cache = {}
 
 local function fetch(path)
-    local ok, r = pcall(http.get, REPO .. path .. "?t=" .. stamp)
+    local url = REPO .. path .. (ref == "main" and "?t=" .. stamp or "")
+    local ok, r = pcall(http.get, url)
     if not ok or not r or r.code ~= 200 then
         error(("can't download %s (%s)"):format(path, ok and r and r.code or tostring(r)), 0)
     end
@@ -33,7 +49,8 @@ local function import(name)
 end
 
 env.import = import
-env.loader = {repo = REPO, fetch = fetch, log = log}
+env.loader = {repo = REPO, ref = ref, fetch = fetch, log = log}
 
+log("Lua " .. ref:sub(1, 7))
 local ok, err = pcall(import, "entry")
 if not ok then log("failed: " .. tostring(err)) end
