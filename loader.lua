@@ -10,7 +10,7 @@ local stamp
 do
     local ok, t = pcall(globals.get_real_time)
     local ok2, f = pcall(globals.get_frame_count)
-    stamp = tostring(ok and t or 0):gsub("%D", "") .. tostring(ok2 and f or 0) .. tostring(collectgarbage("count")):gsub("%D", "")
+    stamp = tostring(ok and t or 0):gsub("%D", "") .. tostring(ok2 and f or 0) .. tostring({}):gsub("%W", "")  -- (no collectgarbage in Astral)
 end
 
 -- the newest commit's id: files fetched by commit are never a stale cached copy, and all come from one commit
