@@ -1,19 +1,14 @@
--- Astral loader: share this file once. Every run it pulls the latest Lua from
--- github.com/Astral-Lua-loader/Lua (branch main) and runs entry.lua from it.
-
 local OWNER_REPO = "Astral-Lua-loader/Lua"
 
 local function log(text) print("[loader] " .. text) end
 
--- a value that differs every load (Astral's `os` has no os.time; math.random unseeded repeats)
 local stamp
 do
     local ok, t = pcall(globals.get_real_time)
     local ok2, f = pcall(globals.get_frame_count)
-    stamp = tostring(ok and t or 0):gsub("%D", "") .. tostring(ok2 and f or 0) .. tostring({}):gsub("%W", "")  -- (no collectgarbage in Astral)
+    stamp = tostring(ok and t or 0):gsub("%D", "") .. tostring(ok2 and f or 0) .. tostring({}):gsub("%W", "")
 end
 
--- the newest commit's id: files fetched by commit are never a stale cached copy, and all come from one commit
 local ref = "main"
 do
     local ok, r = pcall(http.get, "https://api.github.com/repos/" .. OWNER_REPO .. "/commits/main?t=" .. stamp,
@@ -36,7 +31,6 @@ end
 
 local env = setmetatable({}, {__index = _G})
 
--- import("modules.menu") -> runs modules/menu.lua once, returns what it returns
 local function import(name)
     if cache[name] ~= nil then return cache[name] end
     local path = name:gsub("%.", "/") .. ".lua"
@@ -48,15 +42,13 @@ local function import(name)
     return result
 end
 
--- the Scripts repo's read-only token, scrambled (tools/seal_token.py writes SEALED; nil = none, then the Scripts page
--- looks for astral_loader_token.txt)
 local SEALED = nil
 local function unseal(s)
     if type(s) ~= "table" or not s.d then return nil end
     local bxor = (rawget(_G, "bit") or require("bit")).bxor
     local x, out = s.k, {}
     for i = 1, #s.d do
-        x = (x * 48271) % 2147483647  -- MINSTD: exact in a double (no 2^53 overflow)
+        x = (x * 48271) % 2147483647
         out[s.o[i]] = string.char(bxor(s.d[i], x % 256))
     end
     return table.concat(out)
