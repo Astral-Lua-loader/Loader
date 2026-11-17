@@ -12,7 +12,7 @@ end
 local ref = "main"
 do
     local ok, r = pcall(http.get, "https://api.github.com/repos/" .. OWNER_REPO .. "/commits/main?t=" .. stamp,
-        {["Accept"] = "application/vnd.github.sha", ["User-Agent"] = "astral-lua-loader"})
+        {["Accept"] = "application/vnd.github.sha"})
     local sha = ok and r and r.code == 200 and tostring(r.text):match("^%s*(%x+)%s*$")
     if sha and #sha == 40 then ref = sha else log("couldn't read the latest commit, using main") end
 end
