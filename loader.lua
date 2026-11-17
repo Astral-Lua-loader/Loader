@@ -48,8 +48,22 @@ local function import(name)
     return result
 end
 
+-- the Scripts repo's read-only token, scrambled (tools/seal_token.py writes SEALED; nil = none, then the Scripts page
+-- looks for astral_loader_token.txt)
+local SEALED = nil
+local function unseal(s)
+    if type(s) ~= "table" or not s.d then return nil end
+    local bxor = (rawget(_G, "bit") or require("bit")).bxor
+    local x, out = s.k, {}
+    for i = 1, #s.d do
+        x = (x * 48271) % 2147483647  -- MINSTD: exact in a double (no 2^53 overflow)
+        out[s.o[i]] = string.char(bxor(s.d[i], x % 256))
+    end
+    return table.concat(out)
+end
+
 env.import = import
-env.loader = {repo = REPO, ref = ref, fetch = fetch, log = log}
+env.loader = {repo = REPO, ref = ref, fetch = fetch, log = log, scripts_token = unseal(SEALED)}
 
 log("Lua " .. ref:sub(1, 7))
 local ok, err = pcall(import, "entry")
